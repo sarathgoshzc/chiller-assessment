@@ -34,6 +34,7 @@ GITHUB_FEEDBACK_PATH = "results/course_feedback.csv"
 
 ASSETS_DIR = BASE_DIR / "assets"
 LOGO_FILE = ASSETS_DIR / "zealcorps_logo.png"
+LOGO_WATERMARK_FILE = ASSETS_DIR / "zealcorps_logo_watermark.png"
 
 
 QUESTIONS = [
@@ -253,7 +254,7 @@ def setup_page():
     logo_col, title_col = st.columns([1, 5])
     with logo_col:
         if LOGO_FILE.exists():
-            st.image(str(LOGO_FILE), use_container_width=True)
+            st.image(str(LOGO_FILE), width="stretch")
     with title_col:
         st.markdown(
             """
@@ -574,6 +575,41 @@ def draw_logo(c: canvas.Canvas, page_width: float, top_y: float):
         draw_centered(c, "ZEALCORPS", page_width / 2, top_y - 25, "Helvetica-Bold", 28, colors.HexColor("#252525"))
 
 
+
+
+def draw_watermark_logo(c: canvas.Canvas, page_width: float, page_height: float):
+    """Draw the faint Zealcorps icon watermark used in the approved certificate format."""
+    watermark_path = LOGO_WATERMARK_FILE if LOGO_WATERMARK_FILE.exists() else LOGO_FILE
+    if not watermark_path.exists():
+        return
+
+    img = ImageReader(str(watermark_path))
+    iw, ih = img.getSize()
+    watermark_w = 155
+    watermark_h = watermark_w * ih / iw
+
+    # Match the earlier approved certificate: subtle logo icon at right, not a large typed Z.
+    watermark_x = page_width - 250
+    watermark_y = page_height - 405
+
+    c.saveState()
+    if watermark_path == LOGO_FILE:
+        try:
+            c.setFillAlpha(0.08)
+            c.setStrokeAlpha(0.08)
+        except Exception:
+            pass
+    c.drawImage(
+        img,
+        watermark_x,
+        watermark_y,
+        width=watermark_w,
+        height=watermark_h,
+        mask="auto",
+        preserveAspectRatio=True,
+    )
+    c.restoreState()
+
 def generate_certificate_pdf(profile: dict, percentage: float, certificate_no: str) -> bytes:
     """Generate a certificate PDF matching the provided Zealcorps certificate format."""
     buffer = io.BytesIO()
@@ -611,17 +647,8 @@ def generate_certificate_pdf(profile: dict, percentage: float, certificate_no: s
     c.line(page_width - 63, 40, page_width - 192, 40)
     c.line(page_width - 48, 58, page_width - 48, 150)
 
-    # Faint logo watermark
-    c.saveState()
-    try:
-        c.setFillAlpha(0.07)
-        c.setStrokeAlpha(0.07)
-    except Exception:
-        pass
-    c.setFillColor(blue)
-    c.setFont("Helvetica-Bold", 160)
-    c.drawCentredString(page_width - 145, page_height / 2 - 25, "Z")
-    c.restoreState()
+    # Faint logo watermark from approved certificate design
+    draw_watermark_logo(c, page_width, page_height)
 
     # Top logo
     draw_logo(c, page_width, page_height - 52)
@@ -929,11 +956,11 @@ def show_final_result():
 
     st.subheader("Answer Review")
     review_df = pd.DataFrame(result_data["review"])
-    st.dataframe(review_df, use_container_width=True, hide_index=True)
+    st.dataframe(review_df, width="stretch", hide_index=True)
 
     st.subheader("Submitted Course Feedback")
     feedback_df = pd.DataFrame([result_data["feedback"]])
-    st.dataframe(feedback_df, use_container_width=True, hide_index=True)
+    st.dataframe(feedback_df, width="stretch", hide_index=True)
 
 
 def show_results_download():
